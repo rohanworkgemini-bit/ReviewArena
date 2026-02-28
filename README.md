@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ReviewArena
+
+A blind review comparison system where users vote on AI-generated reviews without knowing which model produced them. Built as a full-stack prototype with Next.js, Drizzle ORM, and PostgreSQL (Neon).
+
+## Features
+
+- **Blind Comparison** — Two reviews shown side-by-side, model names hidden
+- **Voting** — Vote A, B, or Tie; model names revealed after voting
+- **Leaderboard** — Models ranked by score (wins = 1 point, ties = 0.5 each)
+
+## Tech Stack
+
+- **Framework:** Next.js 16 (App Router, TypeScript)
+- **Database:** PostgreSQL (Neon serverless)
+- **ORM:** Drizzle ORM
 
 ## Getting Started
 
-First, run the development server:
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Set up the database
+
+Create a `.env` file with your Neon database URL:
+
+```
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+```
+
+### 3. Push the schema and seed data
+
+```bash
+npx drizzle-kit push
+npx tsx src/db/seed.ts
+```
+
+### 4. Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API Endpoints
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/comparison` | Returns a random blind comparison |
+| POST | `/api/vote` | Records a vote, returns model names |
+| GET | `/api/leaderboard` | Returns ranked models by score |
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/
+│   ├── page.tsx                 # Arena (voting page)
+│   ├── leaderboard/page.tsx     # Leaderboard page
+│   └── api/
+│       ├── comparison/route.ts  # GET /api/comparison
+│       ├── vote/route.ts        # POST /api/vote
+│       └── leaderboard/route.ts # GET /api/leaderboard
+├── db/
+│   ├── schema.ts                # Database tables & relations
+│   ├── index.ts                 # DB connection
+│   └── seed.ts                  # Seed script
+└── utils/
+    └── queries.ts               # Database query functions
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Database Schema
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **models** — AI models (GPT-4, Claude 3 Opus, Gemini 1.5 Pro)
+- **reviews** — Review texts, each belonging to a model
+- **comparisons** — Pairs of reviews for side-by-side voting
+- **votes** — Recorded votes with winner/loser and tie flag
