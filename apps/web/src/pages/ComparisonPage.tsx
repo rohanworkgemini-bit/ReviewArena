@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -131,26 +131,18 @@ export function ComparisonPage() {
     refetchInterval: isGenerating ? 1500 : false,
   });
 
-  // Placeholder is dev-only — production must never show mock review data
-  // (it'd skew Elo and confuse voters). In prod, if pair isn't ready and
-  // we're not actively generating, send the user back to /upload below.
+  // Placeholder gating: in DEV we show mock data when no pair is loaded;
+  // in PROD we never render mock (would skew Elo). PLACEHOLDER_PAIR is
+  // ALWAYS the fallback for `pair` so the downstream hooks (useMutation,
+  // useReviewStream) always get a defined value with the right shape —
+  // this is purely a Rules-of-Hooks safety measure. In prod when there's
+  // no real data and we're not generating, we redirect via <Navigate>
+  // at the END of the render, AFTER all hooks have run.
   const allowPlaceholder = import.meta.env.DEV;
-  const pair = pairQuery.data ?? (allowPlaceholder ? PLACEHOLDER_PAIR : null);
+  const pair = pairQuery.data ?? PLACEHOLDER_PAIR;
   const usingPlaceholder = !pairQuery.data && !isGenerating && allowPlaceholder;
-
-  // Production guard: no real pair, not generating, no dev placeholder →
-  // something went wrong (pair API failed silently, link was stale).
-  // Redirect rather than render a broken empty page.
-  useEffect(() => {
-    if (!pair && !isGenerating && paperId.length > 0) {
-      navigate("/upload", { replace: true });
-    }
-  }, [pair, isGenerating, paperId, navigate]);
-
-  if (!pair) {
-    // Render nothing while the redirect effect above runs.
-    return null;
-  }
+  const shouldRedirectToUpload =
+    !pairQuery.data && !isGenerating && !allowPlaceholder && paperId.length > 0;
 
   const voteMutation = useMutation({
     mutationFn: (winner: "A" | "B" | "TIE") =>
@@ -232,6 +224,14 @@ export function ComparisonPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [bothReady, submitting, isGenerating, voteMutation]);
+
+  // Prod-only: pair is missing AND we're not actively generating →
+  // something went wrong (stale link, pair API failed silently).
+  // Declarative redirect via <Navigate> — safe to return AFTER all hooks
+  // have run, unlike an early `return null` which would break hook order.
+  if (shouldRedirectToUpload) {
+    return <Navigate to="/upload" replace />;
+  }
 
   return (
     // pb-32 so the sticky bottom bar never covers the last review section.
