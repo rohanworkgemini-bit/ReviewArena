@@ -93,9 +93,22 @@ async function main() {
       name: "Gemini 3 Pro (zero-shot)",
       description:
         "Google Gemini 3 Pro (top tier) with our zero-shot reviewer prompt. " +
-        "Frontier multi-modal model from the Gemini 3 family.",
+        "Frontier multi-modal model from the Gemini 3 family. " +
+        "Currently pinned to 'gemini-3.1-pro-preview' — Google deprecated " +
+        "'gemini-3-pro-preview' before the study began.",
       adapterKey: "gemini-3-pro",
-      config: { model: "gemini-3-pro", temperature: 0.2 },
+      // gemini-3-pro-preview is dead (404). gemini-3.1-pro-preview is the
+      // current top-tier Gemini 3 model and IS working. We PIN the preview
+      // version so the entire study uses the same model snapshot — switching
+      // mid-study would invalidate apples-to-apples comparison.
+      // Verify currently-callable IDs with:
+      //   for m in "gemini-3.1-pro-preview" "gemini-pro-latest"; do \
+      //     curl -sS -o /dev/null -w "$m → %{http_code}\n" \
+      //       -X POST "https://generativelanguage.googleapis.com/v1beta/models/$m:generateContent?key=$GEMINI_API_KEY" \
+      //       -H "content-type: application/json" \
+      //       -d '{"contents":[{"parts":[{"text":"ping"}]}]}'; \
+      //   done
+      config: { model: "gemini-3.1-pro-preview", temperature: 0.2 },
       enabled: !!process.env.GEMINI_API_KEY,
     },
     {

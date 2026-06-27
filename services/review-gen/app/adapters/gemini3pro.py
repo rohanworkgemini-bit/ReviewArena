@@ -14,5 +14,10 @@ class Gemini3ProAdapter(GeminiAdapter):
     adapter_key = "gemini-3-pro"
 
     def __init__(self, config: dict | None = None) -> None:
-        cfg = {"model": "gemini-3-pro", "temperature": 0.2, **(config or {})}
+        # gemini-3-pro-preview is dead (404 as of 2026-06). The current
+        # top-tier Gemini 3 model is "gemini-3.1-pro-preview". The DB
+        # row in review_systems sets `model` explicitly in config so this
+        # default rarely applies, but keep it aligned to avoid foot-guns
+        # if someone instantiates without overriding config.
+        cfg = {"model": "gemini-3.1-pro-preview", "temperature": 0.2, **(config or {})}
         super().__init__(cfg)
