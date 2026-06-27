@@ -52,6 +52,12 @@ jobs:
       - name: Configure Docker to push to Artifact Registry
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
+      # Required for the GitHub Actions cache (cache-to/from type=gha)
+      # on docker/build-push-action — the default docker driver doesn't
+      # support cache export.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       # ─── Run drizzle migrations BEFORE the new code goes live ────
       # Auto-migrate per Q1=A. A bad migration here will fail the
       # workflow and the new revision will NOT be deployed.
