@@ -66,11 +66,22 @@ jobs:
       - name: pnpm install (for migrate step only)
         run: pnpm install --frozen-lockfile
 
-      - name: Run drizzle migrations
+      # NOTE: We use `db:push` (not `db:migrate`) because the
+      # apps/api/drizzle/ dir contains hand-written SQL migrations
+      # without the `meta/_journal.json` file that drizzle-kit migrate
+      # requires. `db:push` diffs schema.ts against the live DB and
+      # applies only what's missing — same behaviour as the local dev
+      # flow (`pnpm db:push`). For non-destructive schema changes this
+      # runs unattended. If you ever need a destructive schema change
+      # (column drop, type narrow), generate proper migrations:
+      #   pnpm --filter @reviewarena/api db:generate
+      # then commit the new SQL + meta/ files, and switch this step to
+      # `db:migrate`.
+      - name: Apply schema changes (drizzle push)
         working-directory: apps/api
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm db:migrate
+        run: pnpm db:push --force
 
       # ─── Build + push Docker image ────────────────────────────────
       - name: Set image tag
