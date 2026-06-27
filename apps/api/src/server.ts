@@ -68,17 +68,45 @@ app.use(
     },
   }),
 );
-// CORS — whitelist WEB_ORIGIN(s) only. `origin: true` would reflect any
-// origin with credentials=true, which is a textbook CSRF setup for the
-// vote API. We compare exact strings (no wildcards); add multiple origins
-// via comma-separated WEB_ORIGIN if you need preview deploys.
+// CORS — whitelist WEB_ORIGIN(s) plus wildcard support. `origin: true`
+// would reflect any origin with credentials=true, which is a textbook
+// CSRF setup for the vote API. So we whitelist explicitly.
+//
+// WEB_ORIGIN supports two value shapes per comma-separated entry:
+//   - exact origin:    https://review-arena-web.vercel.app
+//   - wildcard suffix: https://*.vercel.app  (matches any subdomain)
+//
+// Wildcards exist because Vercel preview deployments mint a new URL per
+// commit (https://review-arena-<hash>-<owner>.vercel.app). Hard-coding
+// each one would mean a new Cloud Run deploy per Vercel preview, which
+// defeats the point of previews. We accept the modest CSRF surface
+// expansion of *.vercel.app since (a) the vote API is HMAC pair-token
+// gated anyway, (b) sameSite=lax cookies block cross-site POSTs, and
+// (c) anyone hosting a malicious .vercel.app project would still need a
+// valid pair token to do anything.
 const allowedOrigins = webOriginList(config);
+
+function originAllowed(origin: string): boolean {
+  for (const allowed of allowedOrigins) {
+    if (allowed === origin) return true;
+    if (allowed.includes("*")) {
+      // Translate "https://*.vercel.app" → /^https:\/\/[^.]+\.vercel\.app$/
+      // (Escape regex metas first, then turn the escaped \* back into [^.]+.)
+      const pattern = "^" +
+        allowed.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, "[^.]+") +
+        "$";
+      if (new RegExp(pattern).test(origin)) return true;
+    }
+  }
+  return false;
+}
+
 app.use(
   cors({
     origin: (origin, cb) => {
       // No Origin header: same-origin / curl / mobile webview — allow.
       if (!origin) return cb(null, true);
-      if (allowedOrigins.includes(origin)) return cb(null, true);
+      if (originAllowed(origin)) return cb(null, true);
       return cb(new Error(`CORS: origin ${origin} not allowed`));
     },
     credentials: true,

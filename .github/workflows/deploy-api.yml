@@ -120,7 +120,7 @@ jobs:
             --max-instances=3 \
             --concurrency=50 \
             --timeout=300 \
-            --set-env-vars="NODE_ENV=production,REVIEWARENA_ENV=production,WEB_ORIGIN=https://review-arena-web.vercel.app,REVIEW_GEN_URL=https://reviewarena-review-gen-760031824692.europe-west3.run.app" \
+            --set-env-vars="^|^NODE_ENV=production|REVIEWARENA_ENV=production|WEB_ORIGIN=https://review-arena-web.vercel.app,https://*.vercel.app|REVIEW_GEN_URL=https://reviewarena-review-gen-760031824692.europe-west3.run.app" \
             --set-secrets="DATABASE_URL=database-url:latest,ADMIN_TOKEN=admin-token:latest,PAIR_TOKEN_SECRET=pair-token-secret:latest,REVIEW_GEN_API_KEY=review-gen-api-key:latest" \
             --quiet
 
