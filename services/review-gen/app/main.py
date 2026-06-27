@@ -10,7 +10,7 @@ Endpoints:
   POST /metrics/rouge   — ROUGE-1/2/L F-scores
   POST /analytics/topics       — topic model over a review corpus
   POST /analytics/wordfreq     — per-system word frequencies
-  GET  /healthz
+  GET  /health
 """
 from __future__ import annotations
 
@@ -160,7 +160,7 @@ def verify_api_key(x_api_key: str | None = Header(default=None)) -> None:
 app = FastAPI(title="ReviewArena · review-gen", version="0.1.0")
 
 
-@app.get("/healthz")
+@app.get("/health")
 def healthz() -> dict[str, object]:
     # No auth — used by load balancers, monitoring, smoke tests.
     return {"ok": True, "adapters": adapters.known_keys()}

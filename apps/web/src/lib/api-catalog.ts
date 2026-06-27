@@ -328,7 +328,7 @@ const REVIEW_GEN: ApiEndpoint[] = [
   {
     section: "review-gen",
     method: "GET",
-    path: "/healthz",
+    path: "/health",
     summary: "Liveness check",
     description: "Returns the list of registered adapter keys.",
     safe: true,

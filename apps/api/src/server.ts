@@ -37,7 +37,7 @@ const app: Express = express();
 
 // Per-request log line — one short colored line per call, no cookie/header
 // dump. 2xx → info, 4xx → warn, 5xx + errors → error. Polling endpoints
-// (/healthz and per-paper status poll) are silenced on success so they
+// (/health and per-paper status poll) are silenced on success so they
 // don't drown real activity.
 app.use(
   pinoHttp({
@@ -58,7 +58,7 @@ app.use(
     autoLogging: {
       ignore: (req) => {
         const url = req.url ?? "";
-        if (url === "/healthz") return true;
+        if (url === "/health") return true;
         // /papers/:id is polled every 1.5s during generation — silence
         // successful GETs but the path's failures still log (different
         // code path).
@@ -88,15 +88,15 @@ app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
 app.use(sessionMiddleware);
 
-// /healthz — actual readiness probe. Pings the DB so a misconfigured
+// /health — actual readiness probe. Pings the DB so a misconfigured
 // connection string or unreachable Postgres reports 503 instead of
 // silently lying. The DB ping is sub-millisecond on a warm pool.
-app.get("/healthz", async (_req, res) => {
+app.get("/health", async (_req, res) => {
   try {
     await db.execute(sql`SELECT 1`);
     res.json({ ok: true, db: "ok" });
   } catch (err) {
-    // SECURITY: /healthz is publicly reachable. A DB failure message
+    // SECURITY: /health is publicly reachable. A DB failure message
     // would leak the Neon hostname, role, or connection-string detail —
     // useful intel for an attacker. Log full error server-side; return
     // an opaque status to the client.

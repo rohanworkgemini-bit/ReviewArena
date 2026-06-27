@@ -124,14 +124,14 @@ jobs:
             --set-secrets="DATABASE_URL=database-url:latest,ADMIN_TOKEN=admin-token:latest,PAIR_TOKEN_SECRET=pair-token-secret:latest,REVIEW_GEN_API_KEY=review-gen-api-key:latest" \
             --quiet
 
-      # ─── Smoke test: hit /healthz on the new revision ────────────
+      # ─── Smoke test: hit /health on the new revision ────────────
       - name: Smoke test
         run: |
           URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.GCP_REGION }} --format="value(status.url)")
-          echo "Hitting ${URL}/healthz"
+          echo "Hitting ${URL}/health"
           for i in 1 2 3 4 5; do
-            CODE=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "${URL}/healthz" || true)
+            CODE=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "${URL}/health" || true)
             echo "attempt $i: HTTP $CODE"
             if [ "$CODE" = "200" ]; then exit 0; fi
             sleep 5

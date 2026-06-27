@@ -88,13 +88,13 @@ jobs:
             --set-secrets="REVIEW_GEN_API_KEY=review-gen-api-key:latest,OPENAI_API_KEY=openai-api-key:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest,GEMINI_API_KEY=gemini-api-key:latest,DEEPSEEK_API_KEY=deepseek-api-key:latest,CHANDRA_API_KEY=chandra-api-key:latest,MODAL_SHARED_SECRET=modal-shared-secret:latest,HF_TOKEN=hf-token:latest,DEEPREVIEWER_URL=deepreviewer-url:latest,OPENREVIEWER_URL=openreviewer-url:latest,CYCLEREVIEWER_URL=cyclereviewer-url:latest,SEA_URL=sea-url:latest" \
             --quiet
 
-      - name: Smoke test /healthz
+      - name: Smoke test /health
         run: |
           URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
             --region=${{ env.GCP_REGION }} --format="value(status.url)")
-          echo "Hitting ${URL}/healthz"
+          echo "Hitting ${URL}/health"
           for i in 1 2 3 4 5; do
-            CODE=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "${URL}/healthz" || true)
+            CODE=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "${URL}/health" || true)
             echo "attempt $i: HTTP $CODE"
             if [ "$CODE" = "200" ]; then exit 0; fi
             sleep 5
