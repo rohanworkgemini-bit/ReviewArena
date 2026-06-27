@@ -61,7 +61,11 @@ jobs:
 
       - name: Install review-gen deps
         working-directory: services/review-gen
-        run: pip install --no-cache-dir -r requirements.txt
+        # Use pip's cache (no --no-cache-dir) so the cache: pip step in
+        # setup-python above can actually save it. With --no-cache-dir,
+        # the cache folder never gets created and the post-job step
+        # errors trying to upload a missing folder.
+        run: pip install -r requirements.txt
 
       - name: AST parse every .py file (catches syntax errors)
         working-directory: services/review-gen
