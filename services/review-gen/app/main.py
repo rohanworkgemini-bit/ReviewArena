@@ -21,10 +21,22 @@ from pathlib import Path
 
 # Load the project-root .env BEFORE importing adapters, so OPENAI_API_KEY /
 # GEMINI_API_KEY are available when the adapter registry first introspects them.
+#
+# Container path safety: in local dev, main.py lives at
+# services/review-gen/app/main.py (4 levels deep from repo root, so
+# parents[3] is the root). In Docker (Cloud Run), main.py lives at
+# /app/app/main.py with only 2 parent levels, so parents[3] raises
+# IndexError — and Cloud Run gets env vars from --set-env-vars /
+# --set-secrets instead of a .env file. Tolerate both worlds.
 from dotenv import load_dotenv
 
-_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
-load_dotenv(_ROOT_ENV)
+try:
+    _ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
+    if _ROOT_ENV.is_file():
+        load_dotenv(_ROOT_ENV)
+except IndexError:
+    # Containerised — no monorepo root; env comes from the platform.
+    pass
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from pydantic import BaseModel
