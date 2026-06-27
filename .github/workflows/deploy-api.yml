@@ -1,0 +1,124 @@
+# Deploy apps/api → Google Cloud Run.
+#
+# Triggered when apps/api or packages/shared-types or the api Dockerfile
+# changes on main. Runs drizzle migrations BEFORE deploying the new
+# revision so the new code never sees a stale schema.
+#
+# Service URL pattern: https://reviewarena-api-<hash>.europe-west3.run.app
+# (URL is stable per service+region; only changes if service is deleted.)
+
+name: Deploy api → Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/api/**"
+      - "packages/shared-types/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch: # allow manual re-deploy from the Actions tab
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false # never cancel a deploy mid-flight
+
+env:
+  GCP_REGION: europe-west3
+  SERVICE_NAME: reviewarena-api
+  AR_REPO: reviewarena # Artifact Registry repo name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ─── Auth to GCP ──────────────────────────────────────────────
+      - name: Auth to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker to push to Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # ─── Run drizzle migrations BEFORE the new code goes live ────
+      # Auto-migrate per Q1=A. A bad migration here will fail the
+      # workflow and the new revision will NOT be deployed.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: pnpm install (for migrate step only)
+        run: pnpm install --frozen-lockfile
+
+      - name: Run drizzle migrations
+        working-directory: apps/api
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm db:migrate
+
+      # ─── Build + push Docker image ────────────────────────────────
+      - name: Set image tag
+        id: tag
+        run: |
+          echo "IMAGE=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/api:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # monorepo root — pnpm workspace deps live there
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.tag.outputs.IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ─── Deploy to Cloud Run ──────────────────────────────────────
+      - name: Deploy revision
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ steps.tag.outputs.IMAGE }} \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --cpu=1 \
+            --memory=512Mi \
+            --min-instances=0 \
+            --max-instances=3 \
+            --concurrency=50 \
+            --timeout=300 \
+            --set-env-vars="NODE_ENV=production,REVIEWARENA_ENV=production,WEB_ORIGIN=https://review-arena-web.vercel.app,REVIEW_GEN_URL=https://reviewarena-review-gen-760031824692.europe-west3.run.app" \
+            --set-secrets="DATABASE_URL=database-url:latest,ADMIN_TOKEN=admin-token:latest,PAIR_TOKEN_SECRET=pair-token-secret:latest,REVIEW_GEN_API_KEY=review-gen-api-key:latest" \
+            --quiet
+
+      # ─── Smoke test: hit /healthz on the new revision ────────────
+      - name: Smoke test
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.GCP_REGION }} --format="value(status.url)")
+          echo "Hitting ${URL}/healthz"
+          for i in 1 2 3 4 5; do
+            CODE=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "${URL}/healthz" || true)
+            echo "attempt $i: HTTP $CODE"
+            if [ "$CODE" = "200" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "healthz never returned 200"
+          exit 1

@@ -1,0 +1,92 @@
+# Deploy Modal specialists (DeepReviewer, OpenReviewer, CycleReviewer, SEA).
+#
+# Path-filtered per-specialist: editing services/modal/sea/sea_modal.py
+# only redeploys sea, not the other three.
+#
+# Modal CLI authenticates via MODAL_TOKEN_ID + MODAL_TOKEN_SECRET env vars.
+# These are set as GitHub Secrets and exposed only to this job.
+
+name: Deploy Modal specialists
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/modal/**"
+      - ".github/workflows/deploy-modal.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-modal
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    name: Detect which specialists changed
+    runs-on: ubuntu-latest
+    outputs:
+      deepreviewer: ${{ steps.filter.outputs.deepreviewer }}
+      openreviewer: ${{ steps.filter.outputs.openreviewer }}
+      cyclereviewer: ${{ steps.filter.outputs.cyclereviewer }}
+      sea: ${{ steps.filter.outputs.sea }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            deepreviewer:
+              - 'services/modal/deepreviewer/**'
+            openreviewer:
+              - 'services/modal/openreviewer/**'
+            cyclereviewer:
+              - 'services/modal/cyclereviewer/**'
+            sea:
+              - 'services/modal/sea/**'
+
+  deploy:
+    name: Deploy ${{ matrix.app }}
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: deepreviewer
+            file: services/modal/deepreviewer/deepreviewer_modal.py
+            changed: ${{ needs.detect-changes.outputs.deepreviewer }}
+          - app: openreviewer
+            file: services/modal/openreviewer/openreviewer_modal.py
+            changed: ${{ needs.detect-changes.outputs.openreviewer }}
+          - app: cyclereviewer
+            file: services/modal/cyclereviewer/cyclereviewer_modal.py
+            changed: ${{ needs.detect-changes.outputs.cyclereviewer }}
+          - app: sea
+            file: services/modal/sea/sea_modal.py
+            changed: ${{ needs.detect-changes.outputs.sea }}
+
+    steps:
+      - name: Skip unchanged specialists
+        if: matrix.changed != 'true' && github.event_name != 'workflow_dispatch'
+        run: |
+          echo "No changes to services/modal/${{ matrix.app }} — skipping."
+          exit 0
+
+      - uses: actions/checkout@v4
+        if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
+
+      - uses: actions/setup-python@v5
+        if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
+        with:
+          python-version: "3.13"
+
+      - name: Install modal CLI
+        if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: pip install --no-cache-dir modal
+
+      - name: Deploy ${{ matrix.app }}
+        if: matrix.changed == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+        run: modal deploy ${{ matrix.file }}

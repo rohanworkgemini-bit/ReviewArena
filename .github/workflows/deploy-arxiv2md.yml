@@ -1,0 +1,75 @@
+# Deploy services/cloudrun/arxiv2md → Google Cloud Run.
+#
+# Rarely changes — the Dockerfile clones timf34/arxiv2md from upstream.
+# Bump ARXIV2MD_REV in the Dockerfile and push to refresh.
+
+name: Deploy arxiv2md → Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/cloudrun/arxiv2md/**"
+      - ".github/workflows/deploy-arxiv2md.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-arxiv2md
+  cancel-in-progress: false
+
+env:
+  GCP_REGION: europe-west3
+  SERVICE_NAME: reviewarena-arxiv2md
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # Use `gcloud run deploy --source` (Buildpacks/Dockerfile-aware,
+      # builds in Cloud Build). Simpler than the docker/build-push flow
+      # because this service has no monorepo deps.
+      - name: Deploy from source
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --source=services/cloudrun/arxiv2md \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --cpu=1 \
+            --memory=1Gi \
+            --min-instances=0 \
+            --max-instances=3 \
+            --concurrency=10 \
+            --timeout=300 \
+            --quiet
+
+      - name: Smoke test /health
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.GCP_REGION }} --format="value(status.url)")
+          echo "Hitting ${URL}/health"
+          for i in 1 2 3; do
+            CODE=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "${URL}/health" || true)
+            echo "attempt $i: HTTP $CODE"
+            if [ "$CODE" = "200" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "health never returned 200"
+          exit 1

@@ -1,0 +1,98 @@
+# Deploy services/review-gen → Google Cloud Run.
+#
+# Triggered when services/review-gen/** changes on main. Service is
+# publicly reachable (Cloud Run requires this for an HTTP backend) but
+# the X-API-Key gate enforces auth at the app layer. REVIEWARENA_ENV=
+# production causes a hard-fail boot if the key is missing.
+
+name: Deploy review-gen → Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/review-gen/**"
+      - ".github/workflows/deploy-review-gen.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-review-gen
+  cancel-in-progress: false
+
+env:
+  GCP_REGION: europe-west3
+  SERVICE_NAME: reviewarena-review-gen
+  AR_REPO: reviewarena
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Set image tag
+        id: tag
+        run: |
+          echo "IMAGE=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/review-gen:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: services/review-gen # the Dockerfile expects this context
+          file: services/review-gen/Dockerfile
+          push: true
+          tags: ${{ steps.tag.outputs.IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Deploy with REVIEWARENA_ENV=production — if REVIEW_GEN_API_KEY
+      # secret is missing, the container will refuse to boot and this
+      # step will fail loudly. Intended.
+      - name: Deploy revision
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ steps.tag.outputs.IMAGE }} \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --cpu=2 \
+            --memory=2Gi \
+            --min-instances=0 \
+            --max-instances=3 \
+            --concurrency=20 \
+            --timeout=600 \
+            --set-env-vars="REVIEWARENA_ENV=production,ARXIV2MD_BASE=https://reviewarena-arxiv2md-760031824692.europe-west3.run.app" \
+            --set-secrets="REVIEW_GEN_API_KEY=review-gen-api-key:latest,OPENAI_API_KEY=openai-api-key:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest,GEMINI_API_KEY=gemini-api-key:latest,DEEPSEEK_API_KEY=deepseek-api-key:latest,CHANDRA_API_KEY=chandra-api-key:latest,MODAL_SHARED_SECRET=modal-shared-secret:latest,HF_TOKEN=hf-token:latest,DEEPREVIEWER_URL=deepreviewer-url:latest,OPENREVIEWER_URL=openreviewer-url:latest,CYCLEREVIEWER_URL=cyclereviewer-url:latest,SEA_URL=sea-url:latest" \
+            --quiet
+
+      - name: Smoke test /healthz
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.GCP_REGION }} --format="value(status.url)")
+          echo "Hitting ${URL}/healthz"
+          for i in 1 2 3 4 5; do
+            CODE=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "${URL}/healthz" || true)
+            echo "attempt $i: HTTP $CODE"
+            if [ "$CODE" = "200" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "healthz never returned 200"
+          exit 1

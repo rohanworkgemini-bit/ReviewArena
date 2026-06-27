@@ -36,7 +36,7 @@ logger = logging.getLogger("review-gen.parsing.arxiv2md")
 # ever flip back to the public service or move the deploy.
 ARXIV2MD_BASE = os.environ.get(
     "ARXIV2MD_BASE",
-    "https://reviewarena-arxiv2md-554348820688.europe-west3.run.app",
+    "https://reviewarena-arxiv2md-760031824692.europe-west3.run.app",
 ).rstrip("/")
 ARXIV_API_BASE = "https://export.arxiv.org/api/query"
 
