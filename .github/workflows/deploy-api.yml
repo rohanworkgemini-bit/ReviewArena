@@ -55,9 +55,8 @@ jobs:
       # ─── Run drizzle migrations BEFORE the new code goes live ────
       # Auto-migrate per Q1=A. A bad migration here will fail the
       # workflow and the new revision will NOT be deployed.
+      # Uses the pnpm version from package.json's packageManager field.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
