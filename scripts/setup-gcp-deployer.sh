@@ -96,6 +96,21 @@ for role in "${ROLES[@]}"; do
   done
 done
 
+# ── 3b. Grant the default Compute SA secret-read access ─────────────────
+# Cloud Run revisions run as the default Compute service account
+# (<PROJECT_NUMBER>-compute@developer.gserviceaccount.com) — NOT as
+# github-deployer. Without this binding, every revision fails to boot
+# because it can't read the secrets we mount via --set-secrets.
+echo "▶ Granting secret read access to the Cloud Run runtime SA…"
+PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
+RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member="serviceAccount:${RUNTIME_SA}" \
+  --role="roles/secretmanager.secretAccessor" \
+  --condition=None \
+  --quiet >/dev/null
+echo "  ✓ ${RUNTIME_SA} → roles/secretmanager.secretAccessor"
+
 # ── 4. Create Artifact Registry repo if missing ─────────────────────────
 if gcloud artifacts repositories describe "${AR_REPO}" \
      --location="${REGION}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
