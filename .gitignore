@@ -1,41 +1,63 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+node_modules/
+.pnpm-store/
+**/__pycache__/
+*.pyc
+.venv/
+venv/
+services/review-gen/.venv/
 
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
+# build output
+dist/
+build/
+.next/
 *.tsbuildinfo
-next-env.d.ts
+
+# env / secrets — wildcard then allowlist .env.example
+.env
+.env.*
+!.env.example
+
+# CI / cloud credentials (NEVER commit these to a public repo)
+gh-deployer-key.json
+*-service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+gcp-sa-*.json
+
+# logs
+*.log
+logs/
+
+# test
+coverage/
+.vitest/
+
+# editor / OS
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# data — we never persist PDFs to disk
+uploads/
+*.sqlite
+*.db
+
+# stray screenshots in repo root (move to docs/images/ if you want to keep one)
+/*.png
+/*.jpg
+/*.jpeg
+
+# old prototypes that lived under research/
+research/_legacy_uploads/
+research/_legacy_env/
+
+# prisma generated client (regenerated on install)
+apps/api/prisma/generated/
+
+# workflow + agent transcripts (local Claude sessions)
+.claude/projects/

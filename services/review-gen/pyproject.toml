@@ -1,0 +1,13 @@
+[project]
+name = "reviewarena-review-gen"
+version = "0.1.0"
+description = "FastAPI microservice that wraps automated review systems (DeepReviewer, TreeReview, GPT-4o-mini) behind a single HTTP interface."
+requires-python = ">=3.11"
+
+# Pinned in services/review-gen/requirements.txt. pyproject is here so the
+# directory is recognised as a Python project by tooling (ruff, pyright);
+# we don't publish or `pip install -e .` it.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

@@ -1,0 +1,24 @@
+# Pinned in Checkpoint 5. Listed here so the service is reproducible from day one.
+fastapi==0.112.0
+uvicorn[standard]==0.30.5
+pydantic==2.8.2
+httpx==0.27.0
+python-multipart==0.0.9
+python-dotenv==1.0.1
+
+# Review systems / model serving
+openai==1.40.0
+google-generativeai==0.8.3
+# Anthropic SDK for Claude (Opus 4.8 reviewer). Native SDK is cheaper and
+# more reliable than going through OpenRouter (no markup, no proxy layer).
+anthropic>=0.40.0
+# transformers==4.43.3
+# torch==2.4.0
+# accelerate==0.33.0
+
+# Metrics & analytics (added in Checkpoint 7)
+# nltk==3.9.1
+# rouge-score==0.1.2
+# bertopic==0.16.3
+# scikit-learn==1.5.1
+tiktoken~=0.8.0

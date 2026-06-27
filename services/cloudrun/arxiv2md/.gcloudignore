@@ -1,0 +1,8 @@
+# .gcloudignore — prevents shipping junk to Cloud Build.
+# We only need the Dockerfile; the source is cloned inside the image.
+.git
+.gitignore
+*.pyc
+__pycache__/
+.DS_Store
+README.md

@@ -1,0 +1,30 @@
+# Local-dev stack for ReviewArena.
+#
+# Only Postgres runs in a container; apps/web, apps/api, and
+# services/review-gen run on the host (fast iteration, and review-gen
+# talks to Modal-hosted GPU services for the heavy lifting).
+#
+# PDFs are parsed via Datalab's hosted Chandra API (see
+# services/review-gen/app/parsing/chandra.py) — no local parsing container.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reviewarena-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reviewarena
+      POSTGRES_PASSWORD: reviewarena
+      POSTGRES_DB: reviewarena
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reviewarena -d reviewarena"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

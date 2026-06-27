@@ -1,35 +1,33 @@
 {
-  "name": "review-arena",
+  "name": "reviewarena",
   "version": "0.1.0",
   "private": true,
+  "description": "Benchmarking automated peer review systems via human pairwise comparison and Elo ranking. Thesis project, UKP Lab, TU Darmstadt.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
-    "clsx": "^2.1.1",
-    "drizzle-orm": "^0.45.1",
-    "framer-motion": "^12.34.3",
-    "lucide-react": "^0.575.0",
-    "next": "16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "tailwind-merge": "^3.5.0"
+    "dev": "mprocs",
+    "dev:clean": "for p in 8000 8001 5173; do pid=$(lsof -ti :$p 2>/dev/null); [ -n \"$pid\" ] && kill -9 $pid && echo \"killed $pid on :$p\" || echo \":$p already free\"; done",
+    "dev:review-gen": "services/review-gen/.venv/bin/python -m uvicorn app.main:app --reload --port 8001 --app-dir services/review-gen --reload-dir services/review-gen/app",
+    "dev:api": "pnpm --filter @reviewarena/api dev",
+    "dev:web": "pnpm --filter @reviewarena/web dev",
+    "dev:js": "pnpm -r --parallel --filter ./apps/* run dev",
+    "build": "pnpm -r --filter ./apps/* --filter ./packages/* run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "db:up": "docker compose up -d postgres",
+    "stack:up": "docker compose up -d"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "dotenv": "^17.3.1",
-    "drizzle-kit": "^0.31.9",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "tailwindcss": "^4",
-    "tsx": "^4.21.0",
-    "typescript": "^5"
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "packageManager": "pnpm@9.7.1",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
   }
 }

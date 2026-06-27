@@ -1,0 +1,19 @@
+# Local dev runner. `pnpm dev` invokes this.
+#
+# Each process gets its own pane in the mprocs TUI — pick one with the
+# arrow keys and Tab into it for full output. Stopping a process here
+# leaves the others alone (unlike `concurrently -k` which killed them as
+# a group). If you actually want them all dead, quit mprocs with `q`.
+#
+# This project uses Neon (managed Postgres) by default — see DATABASE_URL
+# in .env. If you switch to local Postgres, add a `postgres:` proc that
+# runs `docker compose up -d postgres && docker compose logs -f postgres`
+# (requires Docker / OrbStack running).
+
+procs:
+  review-gen:
+    shell: services/review-gen/.venv/bin/python -m uvicorn app.main:app --reload --port 8001 --app-dir services/review-gen --reload-dir services/review-gen/app
+  api:
+    shell: pnpm --filter @reviewarena/api dev
+  web:
+    shell: pnpm --filter @reviewarena/web dev

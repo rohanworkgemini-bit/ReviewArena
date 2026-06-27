@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReviewArena</title>
+    <script>
+      // Apply theme before first paint so light-mode users don't flash dark
+      // (and dark-mode users don't flash light). Default is dark — matches
+      // LMArena. Explicit "light" in localStorage opts out.
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t !== "light") document.documentElement.classList.add("dark");
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
+  </head>
+  <body class="h-full bg-background text-foreground antialiased">
+    <div id="root" class="min-h-full"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
