@@ -58,7 +58,7 @@ export function GeneratingPanel({
                 token-by-token.
               </p>
               {showWarmupHint && (
-                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                <p className="mt-2 text-xs text-amber-400">
                   First upload of the session — Marker is warming up its GPU
                   container. This typically takes 60-90 seconds, then later
                   uploads complete in 30-45s.

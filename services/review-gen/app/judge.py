@@ -1,9 +1,13 @@
 """LLM-as-judge utilities used by the metrics + paper-grounded reveal pipeline.
 
-API-based only (OpenAI). If OPENAI_API_KEY is missing the call raises
-loudly — there's no mock fallback. The judge runs in the background per
-review (see scoreOneReview), so a silent fake would pollute the
-leaderboard with nonsense; better to fail and surface a config error.
+API-based. Dispatches on model name:
+  - "gemini-*"  →  Google GenAI (requires GEMINI_API_KEY).
+  - everything else  →  OpenAI Chat Completions (requires OPENAI_API_KEY).
+
+If the relevant key is missing the call raises loudly — there's no mock
+fallback. The judge runs in the background per review (see
+scoreOneReview), so a silent fake would pollute the leaderboard with
+nonsense; better to fail and surface a config error.
 
 Methodology references:
   - Zheng et al. 2023 (MT-Bench, arXiv:2306.05685) — reference-guided

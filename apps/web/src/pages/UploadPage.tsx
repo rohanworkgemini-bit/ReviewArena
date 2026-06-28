@@ -1,8 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { UploadCloud, FileText, Loader2, Link2 } from "lucide-react";
+import { UploadCloud, FileText, Loader2, Link2, Check, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +79,7 @@ export function UploadPage() {
         </p>
       </div>
 
-      <SourceTabs value={source} onChange={setSource} />
+      <SourceDropdown value={source} onChange={setSource} />
 
       <Card>
         <CardContent className="space-y-4 pt-6">
@@ -188,40 +188,133 @@ export function UploadPage() {
   );
 }
 
-// Two-button toggle between "PDF upload" and "arXiv link" sources.
-function SourceTabs({
+// Dropdown menu to pick between "Upload PDF" and "arXiv link" sources.
+// Plain useState + click-outside; no Radix dependency for one menu.
+// Keyboard: Enter/Space opens, Esc closes, ArrowDown/ArrowUp move focus,
+// Enter on an item selects.
+const SOURCE_OPTIONS: { value: Source; label: string; icon: typeof UploadCloud }[] = [
+  { value: "pdf", label: "Upload PDF", icon: UploadCloud },
+  { value: "arxiv", label: "arXiv link", icon: Link2 },
+];
+
+function SourceDropdown({
   value,
   onChange,
 }: {
   value: Source;
   onChange: (s: Source) => void;
 }) {
-  const tabs: { value: Source; label: string; icon: typeof UploadCloud }[] = [
-    { value: "pdf", label: "Upload PDF", icon: UploadCloud },
-    { value: "arxiv", label: "arXiv link", icon: Link2 },
-  ];
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click / Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!wrapperRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Focus the selected item when the menu opens for keyboard navigability.
+  useEffect(() => {
+    if (!open) return;
+    const id = `source-opt-${value}`;
+    requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLElement>(`#${id}`)?.focus();
+    });
+  }, [open, value]);
+
+  const onItemKey = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = (idx + 1) % SOURCE_OPTIONS.length;
+      menuRef.current
+        ?.querySelector<HTMLElement>(`#source-opt-${SOURCE_OPTIONS[next]!.value}`)
+        ?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = (idx - 1 + SOURCE_OPTIONS.length) % SOURCE_OPTIONS.length;
+      menuRef.current
+        ?.querySelector<HTMLElement>(`#source-opt-${SOURCE_OPTIONS[prev]!.value}`)
+        ?.focus();
+    }
+  };
+
+  const current = SOURCE_OPTIONS.find((o) => o.value === value) ?? SOURCE_OPTIONS[0]!;
+  const CurrentIcon = current.icon;
+
   return (
-    <div className="inline-flex rounded-md border bg-card p-1">
-      {tabs.map((t) => {
-        const Icon = t.icon;
-        const active = value === t.value;
-        return (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => onChange(t.value)}
-            className={cn(
-              "flex items-center gap-2 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
-              active
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {t.label}
-          </button>
-        );
-      })}
+    <div ref={wrapperRef} className="relative inline-block">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+      >
+        <CurrentIcon className="h-4 w-4 text-muted-foreground" />
+        <span>{current.label}</span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {open && (
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-label="Source"
+          className="absolute left-0 top-[calc(100%+4px)] z-30 min-w-[14rem] overflow-hidden rounded-md border bg-popover bg-card p-1 shadow-lg"
+        >
+          {SOURCE_OPTIONS.map((opt, idx) => {
+            const Icon = opt.icon;
+            const active = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                id={`source-opt-${opt.value}`}
+                role="menuitemradio"
+                aria-checked={active}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                  buttonRef.current?.focus();
+                }}
+                onKeyDown={(e) => onItemKey(e, idx)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-sm transition-colors focus:outline-none",
+                  active
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground focus:bg-accent focus:text-foreground",
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate">{opt.label}</span>
+                {active && <Check className="h-4 w-4 shrink-0 text-violet-500" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

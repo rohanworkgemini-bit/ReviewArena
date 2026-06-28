@@ -352,7 +352,7 @@ export function ComparisonPage() {
       >
         <div className="container flex flex-col gap-2 py-3 md:flex-row md:items-center">
           {bothReady && !allDimensionsFilled ? (
-            <span className="text-xs text-amber-600 dark:text-amber-400 md:whitespace-nowrap">
+            <span className="text-xs text-amber-400 md:whitespace-nowrap">
               Rate all {VOTE_DIMENSIONS.length} dimensions to enable voting
               ({refinedCount}/{VOTE_DIMENSIONS.length} done)
             </span>

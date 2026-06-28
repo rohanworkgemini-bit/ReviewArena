@@ -1,24 +1,26 @@
 import { Link, NavLink } from "react-router-dom";
-import { Trophy, Upload, Shield } from "lucide-react";
+import { Trophy, Vote, Shield } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 // No standalone "Compare" entry — /compare requires a paperId in the URL,
 // so it can only be reached by uploading a paper first: submit content →
-// land directly on the comparison view.
+// land directly on the comparison view. The brand mark links to / (Home).
 const navItems = [
+  { to: "/upload", label: "Vote", icon: Vote },
   { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
-  { to: "/upload", label: "Upload paper", icon: Upload },
   { to: "/admin", label: "Admin", icon: Shield },
 ];
 
 // Mobile-only top bar — on lg+ the Sidebar handles nav instead. Kept as
-// a separate component so the lg+ flex layout stays clean.
+// a separate component so the lg+ flex layout stays clean. Visual
+// language tracks the Render-style dark theme: white/10 hairlines,
+// violet brand mark, violet pill on the active entry.
 export function Header() {
   return (
     <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 lg:hidden">
       <div className="container flex h-14 items-center justify-between gap-4">
         <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background text-[10px] font-bold">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-violet-500 text-[10px] font-bold text-white">
             RA
           </span>
           <span className="hidden sm:inline">ReviewArena</span>
@@ -31,8 +33,10 @@ export function Header() {
               end={item.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors hover:bg-accent hover:text-accent-foreground",
-                  isActive && "bg-accent text-accent-foreground",
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors hover:bg-accent",
+                  isActive
+                    ? "bg-violet-500/15 text-violet-300"
+                    : "text-muted-foreground hover:text-foreground",
                 )
               }
             >
