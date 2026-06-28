@@ -10,7 +10,7 @@
  * Migrations are managed by drizzle-kit (see drizzle.config.ts).
  */
 import { createId } from "@paralleldrive/cuid2";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   doublePrecision,
@@ -237,6 +237,10 @@ export const votes = pgTable(
       .notNull()
       .references(() => papers.id),
     // Blinded positions. Reveal screen maps them back to system identities.
+    // A/B is whatever the user SAW (post coin-flip in selectPair). Canonical
+    // dedupe happens via `pairSig` below, not by sorting A/B here — that
+    // would leak the swap into other surfaces (the reveal screen relies on
+    // these being the as-displayed orientation).
     reviewAId: text("review_a_id").notNull().references(() => reviews.id),
     reviewBId: text("review_b_id").notNull().references(() => reviews.id),
     winner: voteWinnerEnum("winner").notNull(),
@@ -245,6 +249,17 @@ export const votes = pgTable(
     userAgent: text("user_agent"),
     decisionMs: integer("decision_ms"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Canonical pair signature, auto-computed by Postgres as
+    // LEAST(a, b) || '|' || GREATEST(a, b). Used by the dedupe index
+    // below — order-independent so a session can't slip a second vote
+    // through by getting the next /pair call's A/B coin flip to land
+    // the opposite way. Generated STORED so the value lives on disk
+    // and existing rows backfill on column add.
+    pairSig: text("pair_sig")
+      .notNull()
+      .generatedAlwaysAs(
+        sql`LEAST(review_a_id, review_b_id) || '|' || GREATEST(review_a_id, review_b_id)`,
+      ),
   },
   (t) => ({
     paperIdx: index("votes_paper_idx").on(t.paperId),
@@ -252,16 +267,15 @@ export const votes = pgTable(
     createdIdx: index("votes_created_idx").on(t.createdAt),
     reviewAIdx: index("votes_review_a_idx").on(t.reviewAId),
     reviewBIdx: index("votes_review_b_idx").on(t.reviewBId),
-    // Replay protection: one session cannot vote on the same pair twice.
-    // The pair (reviewAId, reviewBId) is already canonicalised by
-    // selectPair (A < B); on the rare path where a token is reused with
-    // sides swapped, the unique index still catches it because the same
-    // logical pair always sorts the same way.
-    sessionPairUk: uniqueIndex("votes_session_pair_uk").on(
+    // Replay protection: one session cannot vote on the same (paper, pair)
+    // twice — regardless of how A/B happened to land on each /pair call.
+    // The old uk on (sessionId, paperId, reviewAId, reviewBId) leaked
+    // because the A/B coin flip created two "different" orderings of the
+    // same pair; pairSig collapses both into one key.
+    sessionPairSigUk: uniqueIndex("votes_session_pair_sig_uk").on(
       t.sessionId,
       t.paperId,
-      t.reviewAId,
-      t.reviewBId,
+      t.pairSig,
     ),
   }),
 );

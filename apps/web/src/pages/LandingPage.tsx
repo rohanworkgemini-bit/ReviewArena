@@ -9,13 +9,14 @@ import {
   LineChart,
 } from "lucide-react";
 import { ParticleBackground } from "@/components/ParticleBackground";
+import { Footer } from "@/components/layout/Footer";
 
-// Public landing page. Render-style marketing surface: pure-black
-// canvas, large bold typography, violet accents, feature cards with a
-// subtle dot-grid background. Forced dark regardless of the user's
-// theme — this page is a landing surface and should always read the
-// same way. Other routes still honour the light/dark toggle via the
-// shell layout in App.tsx.
+// Public landing page. Render-style marketing surface: bold typography,
+// violet accent throughout, feature cards with a subtle dot-grid
+// backdrop, drifting particle field behind everything. Now uses design
+// tokens (bg-background / text-foreground / border / muted-foreground)
+// so it adapts to both light + dark mode along with the rest of the
+// app. Violet (the brand color) is constant across modes.
 
 interface Feature {
   icon: LucideIcon;
@@ -51,27 +52,14 @@ const FEATURES: Feature[] = [
   },
 ];
 
-// Subtle dot-grid background, matches the dotted-pixel pattern in the
-// Render screenshot. Applied via inline style so it can be composed
-// with Tailwind classes without polluting tailwind.config.
-const DOT_GRID_STYLE = {
-  backgroundImage:
-    "radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)",
-  backgroundSize: "16px 16px",
-};
-
 export function LandingPage() {
+  // Stack order:
+  //   z-0  ParticleBackground (fixed to viewport, drifts as user scrolls)
+  //   z-10 page content — every section sets `relative z-10` so it
+  //        floats above the dots. Sections use translucent or gradient
+  //        bgs so the field shows through.
   return (
-    // `dark` class is redundant globally now (site is always dark) but
-    // kept on this root so the page is self-contained if ever rendered
-    // outside the main app shell.
-    //
-    // Stack order:
-    //   z-0  ParticleBackground (fixed to viewport, drifts as user scrolls)
-    //   z-10 page content — every section sets `relative z-10` so it
-    //        floats above the dots. Sections use translucent or
-    //        gradient bgs so the field shows through.
-    <div className="dark relative min-h-screen bg-black text-white">
+    <div className="relative min-h-screen bg-background text-foreground">
       <ParticleBackground variant="fixed" />
       <div className="relative z-10">
         <TopBar />
@@ -88,19 +76,17 @@ export function LandingPage() {
 
 function TopBar() {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-black/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
         <Link to="/" className="flex items-center gap-2">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-violet-500 text-[10px] font-bold text-white">
-            RA
-          </span>
+          <img src="/favicon-32x32.png" alt="" aria-hidden className="h-7 w-7" />
           <span className="font-semibold tracking-tight">ReviewArena</span>
         </Link>
-        <nav className="hidden items-center gap-7 text-sm text-white/70 md:flex">
-          <Link to="/leaderboard" className="transition-colors hover:text-white">
+        <nav className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
+          <Link to="/leaderboard" className="transition-colors hover:text-foreground">
             Leaderboard
           </Link>
-          <Link to="/admin" className="transition-colors hover:text-white">
+          <Link to="/admin" className="transition-colors hover:text-foreground">
             Admin
           </Link>
         </nav>
@@ -127,10 +113,10 @@ function TopBar() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-white/10">
-      {/* Ambient violet glow behind the headline — sits above the
-          page-wide particle canvas so the bloom tints the dots near
-          the centre. The canvas itself lives at the page root. */}
+    <section className="relative overflow-hidden border-b">
+      {/* Ambient violet glow behind the headline. Semi-transparent
+          violet composites correctly over both light and dark canvases
+          (just reads as a softer bloom on light). */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -141,17 +127,17 @@ function Hero() {
       />
       <div className="relative mx-auto max-w-7xl px-6 py-24 lg:py-32">
         <div className="flex flex-col items-center gap-8 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
-            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span className="inline-flex items-center gap-2 rounded-full border bg-card/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
             Blind pairwise comparison for AI peer reviewers
           </span>
           <h1 className="max-w-4xl text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl lg:text-7xl">
             Which AI writes the better{" "}
-            <span className="bg-gradient-to-br from-violet-300 to-violet-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-br from-violet-400 to-violet-600 bg-clip-text text-transparent">
               peer review?
             </span>
           </h1>
-          <p className="max-w-2xl text-lg leading-relaxed text-white/70">
+          <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">
             ReviewArena puts modern AI reviewer systems head-to-head on real
             papers. Upload a paper, read two anonymous reviews side-by-side,
             and rate every dimension — your votes drive a transparent Elo
@@ -167,7 +153,7 @@ function Hero() {
             </Link>
             <Link
               to="/leaderboard"
-              className="inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/5 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-md border bg-card/60 px-6 py-3 text-base font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-accent"
             >
               <Trophy className="h-4 w-4" />
               See the leaderboard
@@ -188,16 +174,19 @@ function StatsRow() {
     { value: "Blind", label: "Pair selection" },
   ];
   return (
-    <div className="mt-8 grid w-full max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10 md:grid-cols-4">
+    // gap-px + bg-border between cells gives a hairline grid effect
+    // that respects the current border color in both modes.
+    <div className="mt-8 grid w-full max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border md:grid-cols-4">
       {items.map((s) => (
         // Translucent fill + backdrop-blur so the drifting dots show
-        // through but the numbers stay legible.
+        // through but the numbers stay legible. bg-card/60 picks up
+        // the theme so dark = #0a0a0a/60, light = white/60.
         <div
           key={s.label}
-          className="bg-black/40 px-4 py-5 text-center backdrop-blur-sm"
+          className="bg-card/60 px-4 py-5 text-center backdrop-blur-sm"
         >
           <div className="text-2xl font-semibold tracking-tight">{s.value}</div>
-          <div className="mt-1 text-xs uppercase tracking-wide text-white/50">
+          <div className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
             {s.label}
           </div>
         </div>
@@ -210,21 +199,21 @@ function StatsRow() {
 
 function FeatureGrid() {
   return (
-    <section className="border-b border-white/10">
+    <section className="border-b">
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
         <div className="mb-12 max-w-3xl">
-          <div className="text-sm font-medium uppercase tracking-wide text-violet-400">
+          <div className="text-sm font-medium uppercase tracking-wide text-violet-500">
             How it works
           </div>
           <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
             Research-grade evaluation, designed for thesis-scale data
           </h2>
-          <p className="mt-4 text-white/60">
+          <p className="mt-4 text-muted-foreground">
             Every component — pair selection, voting, scoring, ranking — is
             built to produce defensible signal across hundreds of papers.
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border bg-border md:grid-cols-2">
           {FEATURES.map((f) => (
             <FeatureCard key={f.title} feature={f} />
           ))}
@@ -239,28 +228,27 @@ function FeatureCard({ feature }: { feature: Feature }) {
   return (
     // Translucent so the page-wide dot field shows through; backdrop-
     // blur softens the dots inside the cards so text stays readable.
-    <div className="group relative overflow-hidden bg-black/40 p-8 backdrop-blur-sm transition-colors hover:bg-white/[0.04] md:p-10">
-      {/* Dot-grid backdrop in the upper-right corner, matching the
-          Render aesthetic. Pointer-events-none so the link below is
-          still clickable across the whole card. */}
+    <div className="group relative overflow-hidden bg-card/60 p-8 backdrop-blur-sm transition-colors hover:bg-accent/50 md:p-10">
+      {/* Dot-grid backdrop in the upper-right corner. Uses the
+          bg-dot-grid utility which reads --dot-grid-color from the
+          theme variables (white-tint on dark, black-tint on light). */}
       <div
         aria-hidden
-        className="pointer-events-none absolute right-0 top-0 h-48 w-1/2 opacity-60"
-        style={DOT_GRID_STYLE}
+        className="bg-dot-grid pointer-events-none absolute right-0 top-0 h-48 w-1/2 opacity-60"
       />
       <div className="relative">
-        <div className="mb-6 inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/10 bg-white/5 text-violet-300">
+        <div className="mb-6 inline-flex h-10 w-10 items-center justify-center rounded-md border bg-card text-violet-500 dark:text-violet-300">
           <Icon className="h-5 w-5" />
         </div>
         <h3 className="text-2xl font-semibold leading-tight tracking-tight md:text-3xl">
           {title}
         </h3>
-        <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/60">
+        <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
           {body}
         </p>
         <Link
           to={link.to}
-          className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-violet-400 transition-colors hover:text-violet-300"
+          className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-violet-500 transition-colors hover:text-violet-400 dark:text-violet-400 dark:hover:text-violet-300"
         >
           {link.label}
           <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -274,20 +262,24 @@ function FeatureCard({ feature }: { feature: Feature }) {
 
 function ClosingCTA() {
   return (
-    <section className="border-b border-white/10">
+    <section className="border-b">
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
+        {/* Inline radial gradient over bg-card so the violet bloom sits
+            on top of a theme-aware base (light = white card, dark =
+            #0a0a0a). Two layers: violet glow first, then a transparent
+            fallback so anywhere the glow fades out we see bg-card. */}
         <div
-          className="relative overflow-hidden rounded-2xl border border-white/10 p-10 md:p-16"
+          className="relative overflow-hidden rounded-2xl border bg-card p-10 md:p-16"
           style={{
-            background:
-              "radial-gradient(ellipse 70% 80% at 50% 0%, rgba(139, 92, 246, 0.20), transparent 70%), #0a0a0a",
+            backgroundImage:
+              "radial-gradient(ellipse 70% 80% at 50% 0%, rgba(139, 92, 246, 0.20), transparent 70%)",
           }}
         >
           <div className="relative max-w-2xl">
             <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
               Ready to put the reviewers to the test?
             </h2>
-            <p className="mt-4 text-white/60">
+            <p className="mt-4 text-muted-foreground">
               Drop a PDF or paste an arXiv URL. Two reviews stream in. You
               decide which one would actually help an author improve their
               paper.
@@ -308,22 +300,5 @@ function ClosingCTA() {
   );
 }
 
-// ─── Footer ────────────────────────────────────────────────────────────────
-
-function Footer() {
-  return (
-    <footer className="border-t border-white/5">
-      <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-3 px-6 py-8 text-xs text-white/40 md:flex-row md:items-center">
-        <div>ReviewArena · thesis build · single-tenant</div>
-        <div className="flex items-center gap-5">
-          <Link to="/leaderboard" className="transition-colors hover:text-white/70">
-            Leaderboard
-          </Link>
-          <Link to="/admin" className="transition-colors hover:text-white/70">
-            Admin
-          </Link>
-        </div>
-      </div>
-    </footer>
-  );
-}
+// Footer is imported from components/layout/Footer.tsx — same component
+// used by the AppShell, so the chrome stays consistent across the app.

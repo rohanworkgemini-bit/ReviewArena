@@ -133,11 +133,12 @@ export function votesRouter(config: Config): Router {
           return newId;
         });
       } catch (err) {
-        // votes_session_pair_uk catches replays — same session voting on
-        // the same (paper, reviewA, reviewB) twice. Return 409 so the
+        // votes_session_pair_sig_uk catches replays — same session voting
+        // on the same canonical pair twice (pairSig collapses A/B coin
+        // flips so a swapped pair still matches). Return 409 so the
         // browser knows this token has already been spent rather than
         // surfacing a generic 500.
-        if (isUniqueViolation(err, "votes_session_pair_uk")) {
+        if (isUniqueViolation(err, "votes_session_pair_sig_uk")) {
           res.status(409).json({
             error: "Conflict",
             message: "This pair has already been voted on for this session.",

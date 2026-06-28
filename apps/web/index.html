@@ -3,11 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Full favicon set generated from the ReviewArena ring logo.
+         Browsers pick the closest size automatically; iOS Safari uses
+         apple-touch-icon for home-screen pin; Android uses the 192/512
+         pair for PWA + chrome tab. -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <title>ReviewArena</title>
     <script>
-      // Site is dark-only. Class is kept for compatibility with any
-      // `dark:` Tailwind variants left in third-party components.
-      document.documentElement.classList.add("dark");
+      // Apply theme before first paint so the user never sees a flash.
+      // Default is dark; explicit "light" in localStorage opts out.
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t !== "light") document.documentElement.classList.add("dark");
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
     </script>
   </head>
   <body class="h-full bg-background text-foreground antialiased">

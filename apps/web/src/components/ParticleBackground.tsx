@@ -94,6 +94,10 @@ export function ParticleBackground({
     };
 
     const draw = (w: number, h: number, tSec: number) => {
+      // Re-read the theme each frame — cheap (one classList read) and
+      // means we react instantly to the toggle without restarting the
+      // rAF loop or re-seeding the particles.
+      const isDark = document.documentElement.classList.contains("dark");
       ctx.clearRect(0, 0, w, h);
       for (const p of particles) {
         // Per-particle opacity sits in 0.25–1.0, drifting with a slow
@@ -101,11 +105,24 @@ export function ParticleBackground({
         const base = 0.35 + Math.min(0.45, (p.r - 0.6) * 0.5);
         const twinkle = 0.25 * Math.sin(tSec * p.speed + p.phase);
         const alpha = Math.max(0.08, Math.min(1, base + twinkle));
-        if (p.hue === 1) {
-          // violet-400 (#A78BFA) — pops on the black canvas.
-          ctx.fillStyle = `rgba(167, 139, 250, ${alpha})`;
+        if (isDark) {
+          if (p.hue === 1) {
+            // violet-400 (#A78BFA) — pops on the black canvas.
+            ctx.fillStyle = `rgba(167, 139, 250, ${alpha})`;
+          } else {
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.85})`;
+          }
         } else {
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.85})`;
+          // Light mode: black + violet-600 dots, capped at lower
+          // opacity so the field is felt rather than seen on the
+          // light-gray canvas.
+          if (p.hue === 1) {
+            // violet-600 (#7C3AED) — darker so it has contrast on light.
+            ctx.fillStyle = `rgba(124, 58, 237, ${alpha * 0.6})`;
+          } else {
+            // True black, low opacity so dots read as soft texture.
+            ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.35})`;
+          }
         }
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
@@ -139,12 +156,26 @@ export function ParticleBackground({
     ro.observe(canvas);
     resize();
 
+    // When the theme toggles, redraw so colors switch immediately. The
+    // animated path picks this up automatically on the next frame; the
+    // reduced-motion path needs an explicit nudge since there's no rAF
+    // loop running.
+    const themeObserver = new MutationObserver(() => {
+      const rect = canvas.getBoundingClientRect();
+      draw(rect.width, rect.height, performance.now() / 1000);
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
     if (reduceMotion) {
       // Single static frame; no rAF loop. Honors OS-level motion pref.
       const rect = canvas.getBoundingClientRect();
       draw(rect.width, rect.height, 0);
       return () => {
         ro.disconnect();
+        themeObserver.disconnect();
       };
     } else {
       // Pause the loop while tab is hidden — saves battery on idle
@@ -166,6 +197,7 @@ export function ParticleBackground({
         running = false;
         cancelAnimationFrame(rafId);
         ro.disconnect();
+        themeObserver.disconnect();
         document.removeEventListener("visibilitychange", onVisibility);
       };
     }

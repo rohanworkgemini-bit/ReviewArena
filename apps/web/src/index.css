@@ -9,20 +9,51 @@
     scrollbar-gutter: stable;
   }
 
-  /* Site is dark-only (Render-style aesthetic). One palette under
-     :root; the `.dark` class is still applied by the bootstrap in
-     index.html for backward compatibility with any `dark:` utilities
-     left in third-party components, but every variable here is the
-     same dark value regardless. */
-  :root,
+  /* ─── Light mode (default :root) ───────────────────────────────────
+     Pure-white canvas. Cards sit a hair off-white (#fafafa) so they
+     still read as elevated against the white background. */
+  :root {
+    --background: 0 0% 100%;           /* #ffffff */
+    --foreground: 240 10% 4%;          /* near-black */
+
+    --card: 0 0% 98%;                  /* #fafafa — barely-elevated */
+    --card-foreground: 240 10% 4%;
+
+    --primary: 262 83% 58%;            /* #8B5CF6 / violet-500 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 92%;
+    --secondary-foreground: 240 10% 4%;
+
+    --muted: 240 5% 92%;
+    --muted-foreground: 240 4% 40%;    /* readable gray on light */
+
+    --accent: 240 5% 90%;              /* hover/active surface */
+    --accent-foreground: 240 10% 4%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 5% 85%;              /* light hairlines */
+    --input: 240 5% 85%;
+    --ring: 262 83% 58%;
+    --radius: 0.625rem;
+
+    /* Dot-grid utility uses this so the texture flips with the theme.
+       Pulled into a variable rather than a hardcoded rgba so the same
+       CSS class works in both modes. */
+    --dot-grid-color: rgba(0, 0, 0, 0.06);
+  }
+
+  /* ─── Dark mode (Render-style pure-black canvas) ─────────────────── */
   .dark {
-    --background: 0 0% 0%;            /* #000000 */
+    --background: 0 0% 0%;
     --foreground: 0 0% 98%;
 
-    --card: 0 0% 4%;                  /* #0a0a0a */
+    --card: 0 0% 4%;
     --card-foreground: 0 0% 98%;
 
-    --primary: 262 83% 58%;           /* #8B5CF6 / violet-500 */
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 9%;
@@ -40,7 +71,8 @@
     --border: 0 0% 14%;
     --input: 0 0% 14%;
     --ring: 262 83% 58%;
-    --radius: 0.625rem;
+
+    --dot-grid-color: rgba(255, 255, 255, 0.06);
   }
 
   body {
@@ -48,9 +80,10 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* Subtle Render-style dot-grid utility. Apply with `bg-dot-grid`. */
+  /* Subtle dot-grid utility, theme-aware via the --dot-grid-color
+     variable above. */
   .bg-dot-grid {
-    background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    background-image: radial-gradient(var(--dot-grid-color) 1px, transparent 1px);
     background-size: 16px 16px;
   }
 }

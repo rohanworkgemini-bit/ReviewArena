@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { Footer } from "@/components/layout/Footer";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ParticleBackground } from "@/components/ParticleBackground";
 
@@ -83,7 +84,10 @@ function AppShell({ children }: { children: ReactNode }) {
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <Header />
+        {/* main is flex-1 so on short pages the Footer still hugs the
+            viewport bottom instead of floating mid-screen. */}
         <main className="flex-1">{children}</main>
+        <Footer />
       </div>
     </div>
   );
