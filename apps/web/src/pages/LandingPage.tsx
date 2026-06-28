@@ -41,7 +41,7 @@ const STEPS: Step[] = [
   {
     icon: Vote,
     title: "Vote your preference",
-    body: "Pick A, B, or call it a tie — overall or per-dimension. Your vote updates each system's Elo rating on the leaderboard.",
+    body: "Pick A, B, or call it a tie overall — and rate every dimension (8 axes) before submitting. Your vote updates each system's Elo rating on the leaderboard.",
   },
 ];
 

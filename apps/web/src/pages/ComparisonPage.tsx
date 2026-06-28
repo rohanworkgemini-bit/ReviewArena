@@ -83,7 +83,9 @@ export function ComparisonPage() {
 
   const startedAt = useMemo(() => Date.now(), [paperId]);
   const [dimensionValues, setDimensionValues] = useState<Partial<Record<VoteDimension, number>>>({});
-  const [refineOpen, setRefineOpen] = useState(false);
+  // Per-dimension picks are REQUIRED — open by default so the rater
+  // sees right away that 8 picks are needed before they can submit.
+  const [refineOpen, setRefineOpen] = useState(true);
 
   // Resume the in-flight round on reload. The pair is held stable from the
   // moment it's picked until the user votes — refreshing should never
@@ -152,7 +154,7 @@ export function ComparisonPage() {
         decisionMs: Date.now() - startedAt,
         dimensions: Object.entries(dimensionValues).map(([dimension, value]) => ({
           dimension: dimension as VoteDimension,
-          value: value!,
+          value: value as -1 | 1,
         })),
       }),
     onSuccess: (data) => {
@@ -168,6 +170,7 @@ export function ComparisonPage() {
   });
 
   const refinedCount = Object.keys(dimensionValues).length;
+  const allDimensionsFilled = refinedCount === VOTE_DIMENSIONS.length;
   const submitting = voteMutation.isPending;
 
   // Open streams here (not in the panels) so we can gate the vote bar
@@ -203,7 +206,7 @@ export function ComparisonPage() {
   // Only fires when both reviews are ready and no input is focused.
   // ArrowLeft/Right as an alternate for muscle memory.
   useEffect(() => {
-    if (!bothReady || submitting || isGenerating) return;
+    if (!bothReady || submitting || isGenerating || !allDimensionsFilled) return;
     const cast = (winner: "A" | "B" | "TIE") => voteMutation.mutate(winner);
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -223,7 +226,7 @@ export function ComparisonPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [bothReady, submitting, isGenerating, voteMutation]);
+  }, [bothReady, submitting, isGenerating, allDimensionsFilled, voteMutation]);
 
   // Prod-only: pair is missing AND we're not actively generating →
   // something went wrong (stale link, pair API failed silently).
@@ -271,12 +274,11 @@ export function ComparisonPage() {
         </div>
       )}
 
-      {/* Optional per-dimension picks. Hidden by default so the verdict
-          decision isn't drowned in 8 extra controls — "vote first, refine
-          later" flow. Inside the panel each dimension is a single
-          segmented split-button (matrix-style survey pattern) instead of
-          two separate buttons — clearer mutual-exclusion + cleaner
-          vertical rhythm. */}
+      {/* Per-dimension picks are REQUIRED before submitting an overall
+          vote — every rater must rate all 8 dimensions. Open by default
+          so the requirement is visible immediately. Each dimension is a
+          single segmented split-button (matrix-style survey pattern) for
+          clear mutual-exclusion and tight vertical rhythm. */}
       <div className="rounded-lg border bg-card">
         <button
           type="button"
@@ -284,8 +286,8 @@ export function ComparisonPage() {
           className="flex w-full items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-muted/30"
         >
           <div className="flex items-center gap-2">
-            <span className="font-medium">Refine by dimension</span>
-            <span className="text-xs text-muted-foreground">(optional)</span>
+            <span className="font-medium">Rate every dimension</span>
+            <span className="text-xs text-muted-foreground">(required)</span>
           </div>
           <div className="flex items-center gap-3">
             <DimensionProgress
@@ -348,18 +350,29 @@ export function ComparisonPage() {
       <div
         className="fixed bottom-0 right-0 z-30 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 left-0 lg:[left:var(--sidebar-w)]"
       >
-        <div className="container flex items-center gap-3 py-3">
-          <span className="hidden text-xs uppercase tracking-wide text-muted-foreground md:inline">
-            Your verdict
-          </span>
+        <div className="container flex flex-col gap-2 py-3 md:flex-row md:items-center">
+          {bothReady && !allDimensionsFilled ? (
+            <span className="text-xs text-amber-600 dark:text-amber-400 md:whitespace-nowrap">
+              Rate all {VOTE_DIMENSIONS.length} dimensions to enable voting
+              ({refinedCount}/{VOTE_DIMENSIONS.length} done)
+            </span>
+          ) : (
+            <span className="hidden text-xs uppercase tracking-wide text-muted-foreground md:inline">
+              Your verdict
+            </span>
+          )}
           <div className="flex flex-1 gap-2">
             <Button
               size="lg"
               className="flex-1"
               variant="outline"
-              disabled={submitting || isGenerating || !bothReady}
+              disabled={submitting || isGenerating || !bothReady || !allDimensionsFilled}
               onClick={() => voteMutation.mutate("A")}
-              title="Shortcut: 1 or ←"
+              title={
+                !allDimensionsFilled
+                  ? `Rate all ${VOTE_DIMENSIONS.length} dimensions first`
+                  : "Shortcut: 1 or ←"
+              }
             >
               <span>A is better</span>
               <kbd className="ml-2 hidden rounded border bg-muted px-1.5 text-[10px] font-mono text-muted-foreground md:inline">1</kbd>
@@ -368,9 +381,13 @@ export function ComparisonPage() {
               size="lg"
               className="flex-1"
               variant="outline"
-              disabled={submitting || isGenerating || !bothReady}
+              disabled={submitting || isGenerating || !bothReady || !allDimensionsFilled}
               onClick={() => voteMutation.mutate("TIE")}
-              title="Shortcut: 2"
+              title={
+                !allDimensionsFilled
+                  ? `Rate all ${VOTE_DIMENSIONS.length} dimensions first`
+                  : "Shortcut: 2"
+              }
             >
               <span>Tie</span>
               <kbd className="ml-2 hidden rounded border bg-muted px-1.5 text-[10px] font-mono text-muted-foreground md:inline">2</kbd>
@@ -379,9 +396,13 @@ export function ComparisonPage() {
               size="lg"
               className="flex-1"
               variant="outline"
-              disabled={submitting || isGenerating || !bothReady}
+              disabled={submitting || isGenerating || !bothReady || !allDimensionsFilled}
               onClick={() => voteMutation.mutate("B")}
-              title="Shortcut: 3 or →"
+              title={
+                !allDimensionsFilled
+                  ? `Rate all ${VOTE_DIMENSIONS.length} dimensions first`
+                  : "Shortcut: 3 or →"
+              }
             >
               <span>B is better</span>
               <kbd className="ml-2 hidden rounded border bg-muted px-1.5 text-[10px] font-mono text-muted-foreground md:inline">3</kbd>

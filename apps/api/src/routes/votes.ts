@@ -117,21 +117,18 @@ export function votesRouter(config: Config): Router {
             })
             .returning({ id: votes.id });
           const newId = created!.id;
-          if (body.dimensions && body.dimensions.length > 0) {
-            await tx.insert(dimensionVotes).values(
-              body.dimensions.map((d) => ({
-                voteId: newId,
-                dimension: d.dimension,
-                value: d.value,
-              })),
-            );
-          }
+          // Schema guarantees all 8 dimensions are present.
+          await tx.insert(dimensionVotes).values(
+            body.dimensions.map((d) => ({
+              voteId: newId,
+              dimension: d.dimension,
+              value: d.value,
+            })),
+          );
 
           await snapshotLeaderboard(tx, newId, null);
-          if (body.dimensions) {
-            for (const d of body.dimensions) {
-              await snapshotLeaderboard(tx, newId, d.dimension);
-            }
+          for (const d of body.dimensions) {
+            await snapshotLeaderboard(tx, newId, d.dimension);
           }
           return newId;
         });

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { VoteDimensionSchema } from "./dimensions.js";
+import { VOTE_DIMENSIONS, VoteDimensionSchema } from "./dimensions.js";
 import { StructuredReviewSchema } from "./structured-review.js";
 
 // ─── Shared scalars ─────────────────────────────────────────────────────────
@@ -66,14 +66,29 @@ export const SubmitVoteRequestSchema = z.object({
   pairToken: z.string(),
   winner: z.enum(["A", "B", "TIE"]),
   decisionMs: z.number().int().nonnegative().optional(),
+  // All 8 dimensions are now required (one pick per dimension, no
+  // duplicates). The UI gates the submit button on this; the server
+  // enforces it too so a non-UI client can't bypass it and pollute
+  // per-dimension leaderboards with sparse data. value is -1 (A wins),
+  // 1 (B wins). We deliberately don't accept 0 / TIE per-dim — overall
+  // TIE is enough; per-dim asks the rater to commit.
   dimensions: z
     .array(
       z.object({
         dimension: VoteDimensionSchema,
-        value: z.number().int().min(-2).max(2),
+        value: z.union([z.literal(-1), z.literal(1)]),
       }),
     )
-    .optional(),
+    .length(VOTE_DIMENSIONS.length)
+    .refine(
+      (arr) => new Set(arr.map((d) => d.dimension)).size === arr.length,
+      { message: "Each dimension may appear at most once." },
+    )
+    .refine(
+      (arr) =>
+        VOTE_DIMENSIONS.every((d) => arr.some((x) => x.dimension === d)),
+      { message: "All voting dimensions must be provided." },
+    ),
 });
 export type SubmitVoteRequest = z.infer<typeof SubmitVoteRequestSchema>;
 
