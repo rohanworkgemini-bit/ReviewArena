@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { RequireAdminToken } from "@/components/RequireAdminToken";
 
 // Code-split each route. The leaderboard pulls in recharts (~80 KB);
 // the admin page is rarely visited; reveal pulls in radar deps. Lazy
@@ -90,7 +91,14 @@ export function App() {
                     <Route path="/compare" element={<ComparisonPage />} />
                     <Route path="/reveal" element={<RevealPage />} />
                     <Route path="/admin" element={<AdminPage />} />
-                    <Route path="/dev" element={<ApiDocsPage />} />
+                    <Route
+                      path="/dev"
+                      element={
+                        <RequireAdminToken>
+                          <ApiDocsPage />
+                        </RequireAdminToken>
+                      }
+                    />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Suspense>

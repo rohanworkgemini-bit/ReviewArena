@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   Home,
@@ -24,16 +25,37 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-const navItems: { to: string; label: string; icon: LucideIcon }[] = [
+type NavItem = { to: string; label: string; icon: LucideIcon };
+
+const baseNavItems: NavItem[] = [
   { to: "/", label: "Home", icon: Home },
   { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { to: "/admin", label: "Admin", icon: Shield },
-  { to: "/dev", label: "API docs", icon: Code2 },
 ];
+
+const ADMIN_TOKEN_KEY = "reviewarena.adminToken";
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const navigate = useNavigate();
   const { theme, toggle: toggleTheme } = useTheme();
+
+  // Show the "API docs" link only when the admin token is present in
+  // this browser — the /dev route itself is gated by RequireAdminToken,
+  // but hiding the link too keeps the sidebar clean for non-admin
+  // visitors.
+  const [hasAdminToken, setHasAdminToken] = useState<boolean>(() =>
+    typeof window === "undefined" ? false : !!localStorage.getItem(ADMIN_TOKEN_KEY),
+  );
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key === ADMIN_TOKEN_KEY) setHasAdminToken(!!e.newValue);
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
+  const navItems: NavItem[] = hasAdminToken
+    ? [...baseNavItems, { to: "/dev", label: "API docs", icon: Code2 }]
+    : baseNavItems;
 
   return (
     <aside
