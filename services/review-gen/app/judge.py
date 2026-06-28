@@ -115,6 +115,59 @@ def _build_prompts(paper_text: str, review_text: str) -> tuple[str, str]:
     return system_prompt, user_prompt
 
 
+def _is_gemini(model: str) -> bool:
+    return model.lower().startswith("gemini")
+
+
+def _openai_judge_pass(
+    client,
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    model: str,
+) -> dict:
+    response = client.chat.completions.create(
+        model=model,
+        temperature=0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    )
+    raw = response.choices[0].message.content or "{}"
+    return json.loads(raw)
+
+
+def _gemini_judge_pass(
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    model: str,
+) -> dict:
+    """One Gemini judge call. Uses google.generativeai with
+    response_mime_type=application/json so the model returns parseable
+    JSON without a code fence."""
+    import google.generativeai as genai  # type: ignore[import-not-found]
+
+    # generativeai is module-global by design — `configure()` sets the
+    # API key for the process. Repeated calls are cheap and idempotent.
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    gm = genai.GenerativeModel(
+        model_name=model,
+        system_instruction=system_prompt,
+    )
+    response = gm.generate_content(
+        user_prompt,
+        generation_config={
+            "temperature": 0,
+            "response_mime_type": "application/json",
+        },
+    )
+    raw = (response.text or "{}").strip()
+    return json.loads(raw)
+
+
 def _one_judge_pass(
     client,
     *,
@@ -122,22 +175,24 @@ def _one_judge_pass(
     user_prompt: str,
     model: str,
 ) -> dict:
-    """Single judge call with retry on transient OpenAI errors. Returns
-    the parsed JSON dict. Raises RuntimeError if all retries fail."""
+    """Single judge call with retry on transient errors. Dispatches by
+    model name. Returns the parsed JSON dict. Raises RuntimeError if all
+    retries fail. `client` is the OpenAI client (unused for Gemini)."""
     last_err: Exception | None = None
     for attempt in range(JUDGE_RETRY_MAX):
         try:
-            response = client.chat.completions.create(
+            if _is_gemini(model):
+                return _gemini_judge_pass(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    model=model,
+                )
+            return _openai_judge_pass(
+                client,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
                 model=model,
-                temperature=0,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
             )
-            raw = response.choices[0].message.content or "{}"
-            return json.loads(raw)
         except Exception as e:  # noqa: BLE001 — retry on anything transient-looking
             last_err = e
             if attempt < JUDGE_RETRY_MAX - 1:
@@ -152,17 +207,26 @@ def _one_judge_pass(
     raise RuntimeError(f"judge call failed after {JUDGE_RETRY_MAX} attempts: {last_err}")
 
 
+# Default judge model. Gemini 3.1 Pro is the top-tier Google model and
+# is independent from any of our currently-deployed reviewer systems
+# (we don't ship a Gemini reviewer that uses gemini-3.1-pro-preview as
+# its underlying model directly in production — kept separate to avoid
+# obvious self-grading bias).
+DEFAULT_JUDGE_MODEL = "gemini-3.1-pro-preview"
+
+
 def judge_review(
     review_text: str,
     paper_text: str,
     *,
-    model: str = "gpt-4o-mini",
+    model: str = DEFAULT_JUDGE_MODEL,
 ) -> JudgeResult:
     """Score a review against the paper.
 
     Returns overall + per-dimension scores plus claim-level verdicts for
-    the paper-grounded reveal screen. Raises RuntimeError if
-    OPENAI_API_KEY is missing — no fake-data fallback.
+    the paper-grounded reveal screen. Raises RuntimeError if the
+    relevant API key (GEMINI_API_KEY for gemini-*, OPENAI_API_KEY
+    otherwise) is missing — no fake-data fallback.
 
     Runs the judge JUDGE_PASSES times and averages numeric scores to
     reduce stochasticity (even at temperature=0 the model is not
@@ -170,16 +234,23 @@ def judge_review(
     are taken from the first pass — they're qualitative and majority
     voting across passes would require extra alignment logic.
     """
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise RuntimeError(
-            "judge_review requires OPENAI_API_KEY in the environment. "
-            "There is no mock fallback — set the key or disable the "
-            "fire-and-forget scoreOneReview() calls upstream."
-        )
+    using_gemini = _is_gemini(model)
+    if using_gemini:
+        if not os.environ.get("GEMINI_API_KEY"):
+            raise RuntimeError(
+                f"judge_review with model={model!r} requires GEMINI_API_KEY "
+                "in the environment. There is no mock fallback."
+            )
+        client = None  # not used on the Gemini path
+    else:
+        if not os.environ.get("OPENAI_API_KEY"):
+            raise RuntimeError(
+                f"judge_review with model={model!r} requires OPENAI_API_KEY "
+                "in the environment. There is no mock fallback."
+            )
+        from openai import OpenAI  # type: ignore[import-not-found]
+        client = OpenAI()
 
-    from openai import OpenAI  # type: ignore[import-not-found]
-
-    client = OpenAI()
     system_prompt, user_prompt = _build_prompts(paper_text, review_text)
 
     # Multi-pass averaging. If all passes fail we surface the error;

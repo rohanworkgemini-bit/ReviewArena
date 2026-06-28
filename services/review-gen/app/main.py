@@ -49,7 +49,7 @@ from app.adapters._budget import (
     render_canonical,
     render_canonical_scoped,
 )
-from app.judge import judge_review
+from app.judge import DEFAULT_JUDGE_MODEL, judge_review
 from app.metrics import bleu, rouge
 from app.analytics import topic_model, word_frequencies
 from app.parsing import (
@@ -393,7 +393,7 @@ async def stream_generate(req: GenerateRequest, request: Request):
 class JudgeRequest(BaseModel):
     review_text: str
     paper_text: str
-    model: str = "gpt-4o-mini"
+    model: str = DEFAULT_JUDGE_MODEL
 
 
 @app.post("/judge", dependencies=[Depends(verify_api_key)])

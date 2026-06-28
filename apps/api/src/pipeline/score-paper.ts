@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { ParsedPaper } from "@reviewarena/shared-types";
 import { db } from "../db/client.js";
 import { claimChecks, metricScores, papers, reviews } from "../db/schema.js";
-import { JudgeClient } from "../clients/judge-client.js";
+import { DEFAULT_JUDGE_MODEL, JudgeClient } from "../clients/judge-client.js";
 import { logger } from "../logger.js";
 
 // Backfill ClaimCheck + MetricScore rows. Two entry points:
@@ -67,7 +67,7 @@ export async function scoreOneReview(
       kind: "LLM_JUDGE_OVERALL",
       value: judged.overall_score,
       meta: {
-        judge_model: "gpt-4o-mini",
+        judge_model: DEFAULT_JUDGE_MODEL,
         dimension_scores: judged.dimension_scores,
         review_chars: reviewChars,
         review_words: reviewWords,
@@ -78,7 +78,7 @@ export async function scoreOneReview(
       kind: "LLM_JUDGE_VERIFIABILITY",
       value: judged.verifiability_score,
       meta: {
-        judge_model: "gpt-4o-mini",
+        judge_model: DEFAULT_JUDGE_MODEL,
         claim_count: claimCount,
         review_chars: reviewChars,
         review_words: reviewWords,
